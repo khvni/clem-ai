@@ -23,14 +23,27 @@ if database_url:
 
 db = Prisma(datasource={"url": database_url}) if database_url else Prisma()
 
+
 async def connect_db():
-    """Connects to the Prisma database."""
+    """
+    Connects to the Prisma database client.
+
+    This function checks if the client is already connected before attempting
+    to establish a new connection, preventing redundant connection calls.
+    """
     if not db.is_connected():
         print("Connecting to database...")
         await db.connect()
 
+
 async def disconnect_db():
-    """Disconnects from the Prisma database."""
+    """
+    Disconnects from the Prisma database client.
+
+    This function checks if the client is currently connected before attempting
+    to disconnect, preventing errors on shutdown if the connection was never
+    established.
+    """
     if db.is_connected():
         print("Disconnecting from database...")
         await db.disconnect()

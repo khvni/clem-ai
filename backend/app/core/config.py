@@ -7,6 +7,12 @@ ENV_FILE = BASE_DIR / ".env"
 
 
 class Settings(BaseSettings):
+    """
+    Manages application settings and environment variables using Pydantic.
+
+    This class automatically reads variables from a .env file and validates them,
+    providing a single, reliable source for configuration.
+    """
     # Explicitly load the .env file located in the backend directory,
     # regardless of the current working directory. Ignore any extra env keys.
     model_config = SettingsConfigDict(
@@ -16,7 +22,7 @@ class Settings(BaseSettings):
     )
 
     # Define the environment variables your app needs.
-    # Pydantic will automatically read them and validate their types.
+    # Pydantic will automatically read them from the .env file and validate their types.
     GOOGLE_API_KEY: str
 
 # Create a single, reusable instance of the settings
