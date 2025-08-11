@@ -2,80 +2,87 @@
 
 import socketio
 import uvicorn
-from fastapi import FastAPI, Request
+import uuid
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
 
-# --- Pydantic Models for Data Validation ---
-# This defines the structure of the data we expect for a new claim.
-# FastAPI will automatically validate incoming data against this model.
+# Import our new agent runnable
+from app.services.agent import agent_runnable
+
+# --- Pydantic Models for API Data Validation ---
 class ClaimCreate(BaseModel):
     policyNumber: str
     claimantName: str
     incidentDate: datetime
+    incidentDescription: str # Add description for the agent to analyze
 
-# --- FastAPI App Initialization ---
-app = FastAPI(
-    title="Clem AI API",
-    version="0.1.0",
-)
-
-# --- CORS (Cross-Origin Resource Sharing) Middleware ---
-# This is crucial for allowing our Next.js frontend (running on a different domain)
-# to communicate with this backend. We allow all origins for now for easy development.
+# --- FastAPI App & Socket.IO Initialization ---
+app = FastAPI(title="Clem AI API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this to your frontend's domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --- Socket.IO Server Initialization ---
-# We create a Socket.IO server instance. The 'async_mode="asgi"' is essential
-# for it to work with FastAPI.
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-
-# This is the magic that combines our FastAPI app and Socket.IO server.
-# The `sio_app` becomes the main application that Uvicorn will run.
 sio_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app)
 
+
+# --- Background Task to Run the Agent ---
+async def run_agent_and_notify(claim_id: str, claim_data: dict):
+    """
+    This function orchestrates the AI processing and real-time updates.
+    It's designed to be run in the background so the API can respond instantly.
+    """
+    # 1. Notify frontend that a new claim is being processed
+    initial_payload = {"id": claim_id, "status": "IN_REVIEW", **claim_data}
+    await sio.emit("new_claim", data=initial_payload)
+    print(f"Emitted 'new_claim' for {claim_id}")
+
+    # 2. Invoke the LangGraph agent with the claim data
+    agent_input = {"claim_data": claim_data}
+    final_state = await agent_runnable.ainvoke(agent_input)
+    print(f"Agent finished for {claim_id}. Final state: {final_state}")
+
+    # 3. Notify frontend that processing is complete with the final recommendation
+    recommendation = final_state.get("recommendation", {})
+    final_payload = {
+        "id": claim_id,
+        "status": "AWAITING_APPROVAL",
+        "aiRecommendation": recommendation,
+        "aiReasoning": recommendation.get("reason", "No reason provided.")
+    }
+    await sio.emit("claim_updated", data=final_payload)
+    print(f"Emitted 'claim_updated' for {claim_id}")
 
 # --- API Endpoints ---
 @app.get("/")
 async def read_root():
-    """A simple health check endpoint."""
     return {"message": "Clem AI Backend is running!"}
 
-
-@app.post("/api/v1/claims", status_code=201)
+@app.post("/api/v1/claims", status_code=202) # Use 202 Accepted
 async def create_claim(claim: ClaimCreate):
     """
-    Receives a new claim, validates it, and will eventually trigger
-    the AI agent processing.
+    Receives a new claim, and immediately triggers the AI agent as a
+    background task. Responds instantly without waiting for the agent.
     """
     print(f"Received new claim: {claim.dict()}")
-    # In the next steps, we will:
-    # 1. Save the claim to the database.
-    # 2. Trigger the LangGraph agent.
-    # 3. Emit a 'new_claim' event via Socket.IO.
-    return {"message": "Claim received successfully", "data": claim.dict()}
+    claim_id = str(uuid.uuid4())
 
+    # Start the agent process in the background. The API call returns
+    # immediately, providing a fast user experience.
+    await sio.start_background_task(run_agent_and_notify, claim_id, claim.dict())
+
+    return {"message": "Claim received and is being processed", "claim_id": claim_id}
 
 # --- Socket.IO Event Handlers ---
 @sio.event
 async def connect(sid, environ):
-    """Handles a new client connection."""
     print(f"✅ Client connected: {sid}")
 
 @sio.event
 async def disconnect(sid):
-    """Handles a client disconnection."""
     print(f"❌ Client disconnected: {sid}")
-
-# --- Main entry point for Uvicorn ---
-# This block allows running the server directly with `python app/main.py`
-# but we will use the `uvicorn` command for development.
-if __name__ == "__main__":
-    uvicorn.run(sio_app, host="0.0.0.0", port=8000)
