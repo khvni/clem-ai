@@ -1,13 +1,6 @@
 # backend/app/main.py
 
-from pathlib import Path
-from dotenv import load_dotenv
-
-# Load env from the backend root (one level above `app/`), override any existing values
-BASE_DIR = Path(__file__).resolve().parents[1]
-dotenv_file = BASE_DIR / ".env"
-load_dotenv(dotenv_file, override=True)
-
+# Now import modules that depend on environment variables
 import socketio
 import uvicorn
 import uuid
@@ -18,7 +11,7 @@ from datetime import datetime
 
 from app.services.agent import agent_runnable
 # --- Import our new DB client and manager functions ---
-from app.db.prisma import db, connect_db, disconnect_db
+from app.db.prisma import get_db, connect_db, disconnect_db
 
 
 # --- Pydantic Models ---
@@ -64,7 +57,7 @@ async def run_agent_and_notify(claim_id: str, claim_data: dict):
     recommendation = final_state.get("recommendation", {})
     
     # --- UPDATE the claim in the database with the AI's results ---
-    updated_claim = await db.claim.update(
+    updated_claim = await get_db().claim.update(
         where={"id": claim_id},
         data={
             "status": "AWAITING_APPROVAL",
@@ -85,7 +78,7 @@ async def read_root():
 @app.get("/api/v1/claims")
 async def get_all_claims():
     """Fetches all claims from the database."""
-    all_claims = await db.claim.find_many(order={"createdAt": "desc"})
+    all_claims = await get_db().claim.find_many(order={"createdAt": "desc"})
     return all_claims
 
 @app.post("/api/v1/claims", status_code=202)
@@ -93,7 +86,7 @@ async def create_claim(claim: ClaimCreate):
     claim_dict = claim.dict()
     
     # --- CREATE the initial claim record in the database ---
-    new_claim = await db.claim.create(
+    new_claim = await get_db().claim.create(
         data={
             # Generate a unique claim number for simplicity
             "claimNumber": f"CLM-{uuid.uuid4().hex[:8].upper()}",
