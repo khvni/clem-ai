@@ -33,7 +33,9 @@ export class ClaimsService {
       temperature: 0,
     });
 
-    const triageNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+    const triageNode = async (
+      state: AgentState,
+    ): Promise<Partial<AgentState>> => {
       this.logger.log('--- Executing Triage Node ---');
       const triageLlm = llm.withStructuredOutput(triageResultSchema);
       const prompt = `You are an expert insurance claims triager. Analyze the claim and provide a structured assessment. Claim: "${state.claim_data.incident_description}"`;
@@ -41,9 +43,13 @@ export class ClaimsService {
       return { triage_result };
     };
 
-    const recommendNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+    const recommendNode = async (
+      state: AgentState,
+    ): Promise<Partial<AgentState>> => {
       this.logger.log('--- Executing Recommend Node ---');
-      const recommendLlm = llm.withStructuredOutput(settlementRecommendationSchema);
+      const recommendLlm = llm.withStructuredOutput(
+        settlementRecommendationSchema,
+      );
       const prompt = `You are an expert claims adjuster. Based on the claim and triage, provide a settlement recommendation. Triage Assessment: "${JSON.stringify(state.triage_result, null, 2)}"`;
       const settlement_recommendation = await recommendLlm.invoke(prompt);
       return { settlement_recommendation };
@@ -60,11 +66,15 @@ export class ClaimsService {
     return workflow.compile();
   }
 
-  async processNewClaim(claimInput: z.infer<typeof claimInputSchema>): Promise<any> {
-    this.logger.log(`Processing new claim for policy: ${claimInput.policy_number}`);
+  async processNewClaim(
+    claimInput: z.infer<typeof claimInputSchema>,
+  ): Promise<any> {
+    this.logger.log(
+      `Processing new claim for policy: ${claimInput.policy_number}`,
+    );
 
     const stream = await this.agent.stream({ claim_data: claimInput });
-    
+
     // ** THE FINAL FIX IS HERE **
     // This is the correct way to reconstruct the state from the stream.
     let finalState: Partial<AgentState> = {};
@@ -76,7 +86,7 @@ export class ClaimsService {
         finalState = { ...finalState, ...chunk[nodeName] };
       }
     }
-    
+
     this.logger.log('Agent run complete. Saving to database...');
 
     const createdClaim = await this.prisma.claim.create({
@@ -87,16 +97,17 @@ export class ClaimsService {
         incidentDescription: claimInput.incident_description,
         triageResult: finalState.triage_result,
         settlementRecommendation: finalState.settlement_recommendation,
-        settlementAmount: finalState.settlement_recommendation?.recommended_amount,
+        settlementAmount:
+          finalState.settlement_recommendation?.recommended_amount,
       },
     });
 
     this.logger.log(`Successfully saved claim with ID: ${createdClaim.id}`);
-    
+
     // Emit the new claim to all connected WebSocket clients
     this.claimsGateway.emitNewClaim(createdClaim);
     this.logger.log('Emitted new claim to WebSocket clients');
-    
+
     return createdClaim;
   }
 
@@ -107,5 +118,25 @@ export class ClaimsService {
         createdAt: 'desc',
       },
     });
+  }
+
+  async updateClaimStatus(
+    id: string,
+    status: 'PENDING' | 'APPROVED' | 'REJECTED',
+  ) {
+    this.logger.log(`Updating claim ${id} status to: ${status}`);
+
+    const updatedClaim = await this.prisma.claim.update({
+      where: { id },
+      data: { status },
+    });
+
+    this.logger.log(`Successfully updated claim ${id} status to: ${status}`);
+
+    // Emit the updated claim to all connected WebSocket clients
+    this.claimsGateway.emitClaimUpdate(updatedClaim);
+    this.logger.log('Emitted claim update to WebSocket clients');
+
+    return updatedClaim;
   }
 }

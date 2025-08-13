@@ -16,4 +16,9 @@ export class ClaimsGateway {
   emitNewClaim(claim: Claim) {
     this.server.emit('newClaim', claim);
   }
+
+  // This method will be called from our ClaimsService to broadcast claim updates
+  emitClaimUpdate(claim: Claim) {
+    this.server.emit('claimUpdated', claim);
+  }
 }

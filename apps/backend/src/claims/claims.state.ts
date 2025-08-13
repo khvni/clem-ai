@@ -10,14 +10,20 @@ export const claimInputSchema = z.object({
 
 // We are now exporting these for the service to use
 export const triageResultSchema = z.object({
-  assessment: z.string().describe("A summary of the incident and initial liability assessment."),
-  severity: z.enum(["Low", "Medium", "High"]),
+  assessment: z
+    .string()
+    .describe('A summary of the incident and initial liability assessment.'),
+  severity: z.enum(['Low', 'Medium', 'High']),
   fraud_flags: z.array(z.string()),
 });
 
 export const settlementRecommendationSchema = z.object({
-  recommendation_text: z.string().describe("A detailed explanation for the settlement recommendation."),
-  recommended_amount: z.number().describe("The recommended settlement amount in USD."),
+  recommendation_text: z
+    .string()
+    .describe('A detailed explanation for the settlement recommendation.'),
+  recommended_amount: z
+    .number()
+    .describe('The recommended settlement amount in USD.'),
   next_steps: z.string(),
 });
 

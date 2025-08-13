@@ -1,25 +1,28 @@
-// apps/backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// ... rest of file is unchanged ...
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Claim {
-  id                         String    @id @default(cuid())
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
-  status                     String    @default("PENDING")
-  claimantName               String
-  policyNumber               String
-  incidentDate               DateTime
-  incidentDescription        String
-  triageResult               Json?
-  settlementRecommendation   Json?
-  settlementAmount           Float?
+  id                       String      @id @default(cuid())
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  status                   ClaimStatus @default(PENDING)
+  claimantName             String
+  policyNumber             String
+  incidentDate             DateTime
+  incidentDescription      String
+  triageResult             Json?
+  settlementRecommendation Json?
+  settlementAmount         Float?
 }

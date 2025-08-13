@@ -42,8 +42,24 @@ describe('ClaimsService', () => {
     // Mock the agent property directly to avoid LangChain dependencies in tests
     (service as any).agent = {
       stream: jest.fn().mockResolvedValue([
-        { triage: { triage_result: { severity: 'Medium', assessment: 'Test assessment', fraud_flags: [] } } },
-        { recommend: { settlement_recommendation: { recommended_amount: 5000, recommendation_text: 'Test recommendation', next_steps: 'Test steps' } } },
+        {
+          triage: {
+            triage_result: {
+              severity: 'Medium',
+              assessment: 'Test assessment',
+              fraud_flags: [],
+            },
+          },
+        },
+        {
+          recommend: {
+            settlement_recommendation: {
+              recommended_amount: 5000,
+              recommendation_text: 'Test recommendation',
+              next_steps: 'Test steps',
+            },
+          },
+        },
       ]),
     };
   });
@@ -62,7 +78,8 @@ describe('ClaimsService', () => {
         claimant_name: 'John Doe',
         policy_number: 'POL123',
         incident_date: '2024-01-15',
-        incident_description: 'Car accident on highway causing significant damage to front bumper and hood',
+        incident_description:
+          'Car accident on highway causing significant damage to front bumper and hood',
       };
 
       const mockCreatedClaim = {
@@ -70,9 +87,18 @@ describe('ClaimsService', () => {
         claimantName: 'John Doe',
         policyNumber: 'POL123',
         incidentDate: new Date('2024-01-15'),
-        incidentDescription: 'Car accident on highway causing significant damage to front bumper and hood',
-        triageResult: { severity: 'Medium', assessment: 'Test assessment', fraud_flags: [] },
-        settlementRecommendation: { recommended_amount: 5000, recommendation_text: 'Test recommendation', next_steps: 'Test steps' },
+        incidentDescription:
+          'Car accident on highway causing significant damage to front bumper and hood',
+        triageResult: {
+          severity: 'Medium',
+          assessment: 'Test assessment',
+          fraud_flags: [],
+        },
+        settlementRecommendation: {
+          recommended_amount: 5000,
+          recommendation_text: 'Test recommendation',
+          next_steps: 'Test steps',
+        },
         settlementAmount: 5000,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -87,14 +113,25 @@ describe('ClaimsService', () => {
           claimantName: 'John Doe',
           policyNumber: 'POL123',
           incidentDate: new Date('2024-01-15'),
-          incidentDescription: 'Car accident on highway causing significant damage to front bumper and hood',
-          triageResult: { severity: 'Medium', assessment: 'Test assessment', fraud_flags: [] },
-          settlementRecommendation: { recommended_amount: 5000, recommendation_text: 'Test recommendation', next_steps: 'Test steps' },
+          incidentDescription:
+            'Car accident on highway causing significant damage to front bumper and hood',
+          triageResult: {
+            severity: 'Medium',
+            assessment: 'Test assessment',
+            fraud_flags: [],
+          },
+          settlementRecommendation: {
+            recommended_amount: 5000,
+            recommendation_text: 'Test recommendation',
+            next_steps: 'Test steps',
+          },
           settlementAmount: 5000,
         },
       });
 
-      expect(mockClaimsGateway.emitNewClaim).toHaveBeenCalledWith(mockCreatedClaim);
+      expect(mockClaimsGateway.emitNewClaim).toHaveBeenCalledWith(
+        mockCreatedClaim,
+      );
       expect(result).toEqual(mockCreatedClaim);
     });
   });
