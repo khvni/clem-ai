@@ -6,6 +6,7 @@ import { z } from 'zod';
 import 'dotenv/config';
 
 import { PrismaService } from '../prisma.service';
+import { ClaimsGateway } from './claims.gateway';
 import {
   claimInputSchema,
   agentStateSchema,
@@ -19,7 +20,10 @@ export class ClaimsService {
   private readonly logger = new Logger(ClaimsService.name);
   private agent: any;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private claimsGateway: ClaimsGateway,
+  ) {
     this.agent = this.buildAgent();
   }
 
@@ -88,6 +92,11 @@ export class ClaimsService {
     });
 
     this.logger.log(`Successfully saved claim with ID: ${createdClaim.id}`);
+    
+    // Emit the new claim to all connected WebSocket clients
+    this.claimsGateway.emitNewClaim(createdClaim);
+    this.logger.log('Emitted new claim to WebSocket clients');
+    
     return createdClaim;
   }
 
