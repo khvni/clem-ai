@@ -1,12 +1,1 @@
-# clem-ai/.gitignore
-
-# Python
-__pycache__/
-*.pyc
-venv/
-.env
-
-# Node (for later)
-node_modules/
-.next/
-.env.local
+node_modules
